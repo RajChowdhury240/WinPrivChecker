@@ -1,0 +1,65 @@
+#!/usr/bin/python3
+# Author : Raj Chowdhury
+
+import subprocess
+import argparse
+from rich.console import Console
+from rich.panel import Panel
+from rich.text import Text
+from rich import box
+
+console = Console()
+
+def run_command(command):
+    try:
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        return result.stdout.strip()
+    except Exception as e:
+        return str(e)
+
+def check_privileges(username, domain, password, target):
+    console.print(Panel(Text(f"Windows Privilege Escalation Check on {target} ({domain})", style="bold cyan"), expand=False, box=box.DOUBLE))
+
+    privs_to_check = {
+        "SeImpersonatePrivilege": "https://fzl-aws.notion.site/Windows-Privilege-Escalation-All-in-One-1a3b231ab1b680a691d7f05d9146af98",
+        "SeBackupPrivilege": "https://fzl-aws.notion.site/Windows-Privilege-Escalation-All-in-One-1a3b231ab1b680a691d7f05d9146af98",
+        "SeRestorePrivilege": "https://fzl-aws.notion.site/Windows-Privilege-Escalation-All-in-One-1a3b231ab1b680a691d7f05d9146af98",
+        "SeLoadDriverPrivilege": "https://fzl-aws.notion.site/Windows-Privilege-Escalation-All-in-One-1a3b231ab1b680a691d7f05d9146af98",
+        "SeTcbPrivilege": "https://fzl-aws.notion.site/Windows-Privilege-Escalation-All-in-One-1a3b231ab1b680a691d7f05d9146af98",
+        "SeDebugPrivilege": "https://fzl-aws.notion.site/Windows-Privilege-Escalation-All-in-One-1a3b231ab1b680a691d7f05d9146af98",
+        "SeManageVolumePrivilege": "https://fzl-aws.notion.site/Windows-Privilege-Escalation-All-in-One-1a3b231ab1b680a691d7f05d9146af98",
+        "SeTakeOwnershipPrivilege": "https://fzl-aws.notion.site/Windows-Privilege-Escalation-All-in-One-1a3b231ab1b680a691d7f05d9146af98"
+    }
+
+    cmd_privs = f"nxc winrm {domain} -u {username} -p {password} -X 'whoami /priv'"
+    output_privs = run_command(cmd_privs)
+
+    for priv, link in privs_to_check.items():
+        if priv in output_privs:
+            console.print(Panel(Text(f"[+] Dangerous Privilege Found: {priv}\nExploitation Guide: {link}", style="bold red"), expand=False, box=box.ROUNDED))
+
+    group_checks = {
+        "Backup Operators": "Part of Backup Operators",
+        "DnsAdmins": "Part of DnsAdmins",
+    }
+    cmd_groups = f"nxc winrm {domain} -u {username} -p {password} -X 'whoami /groups'"
+    output_groups = run_command(cmd_groups)
+
+    for group, desc in group_checks.items():
+        if group in output_groups:
+            console.print(Panel(Text(f"[+] The user is part of : {desc} Found\nExploitation Guide: https://fzl-aws.notion.site/Windows-Privilege-Escalation-All-in-One-1a3b231ab1b680a691d7f05d9146af98", style="bold green"), expand=False, box=box.ROUNDED))
+
+    cmd_cached = f"nxc smb enum -u {username} -p {password} -d {domain} -t {target} --cached-creds"
+    output_cached = run_command(cmd_cached)
+    if "Cached Credentials" in output_cached:
+        console.print(Panel(Text(f"[+] Cached Saved Credentials Found\nExploitation Guide: https://fzl-aws.notion.site/Windows-Privilege-Escalation-All-in-One-1a3b231ab1b680a691d7f05d9146af98", style="bold yellow"), expand=False, box=box.ROUNDED))
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Windows Privilege Escalation Check using nxc smb")
+    parser.add_argument("-u", "--username", required=True, help="Username")
+    parser.add_argument("-d", "--domain", required=True, help="Domain")
+    parser.add_argument("-p", "--password", required=True, help="Password")
+    parser.add_argument("-t", "--target", required=True, help="Target IP or Hostname")
+    
+    args = parser.parse_args()
+    check_privileges(args.username, args.domain, args.password, args.target)
